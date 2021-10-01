@@ -1,0 +1,6 @@
+test/mtxorb_test
+.obj/
+*.o
+*.so
+*.so.*
+*.a
