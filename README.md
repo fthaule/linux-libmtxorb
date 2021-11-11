@@ -12,7 +12,7 @@ Documentation for the displays can be found here: http://www.matrixorbital.com/m
 
 ## Using the driver
 
-Option 1: Copy the source and header files directly into your project.
+Option 1: Copy the source and header files as is, directly into your project.
 
 Option 2: Build as a static library:
 ```
@@ -25,45 +25,43 @@ $ make lib-shared
 
 ## Simple Implementation Example
 
-NOTE: If controlling multiple displays, remember to use uniqe naming for the defined instances. E.g.: 'lcd1', 'lcd2', etc. The name chosen in this example; 'mtxorb' is just arbitrary.
-
 ```
 #include <stdio.h>
 #include "mtxorb.h"
 
 /* Display specifications */
-#define MTXORB_WIDTH        20
-#define MTXORB_HEIGHT       4
-#define MTXORB_CELLWIDTH    5
-#define MTXORB_CELLHEIGHT   8
+#define LCD_WIDTH        20
+#define LCD_HEIGHT       4
+#define LCD_CELLWIDTH    5
+#define LCD_CELLHEIGHT   8
 
 /* Connection details */
-#define MTXORB_DEV_PORTNAME     "/dev/ttyUSB0"
-#define MTXORB_DEV_BAUDRATE     19200
+#define LCD_PORTNAME     "/dev/ttyUSB0"
+#define LCD_BAUDRATE     19200
 
 
-static const struct mtxorb_device_info mtxorb_info = {
-    MTXORB_WIDTH, MTXORB_HEIGHT,
-    MTXORB_CELLWIDTH, MTXORB_CELLHEIGHT,
-    MTXORB_LCD
+static const struct mtxorb_device_info lcd_dev_info = {
+    LCD_WIDTH, LCD_HEIGHT,
+    LCD_CELLWIDTH, LCD_CELLHEIGHT,
+    MTXORB_LCD /* Display type: MTXORB_LCD, MTXORB_LKD, MTXORB_VFD or MTXORB_VKD */
 };
 
 int main(void)
 {
-    MTXORB *mtxorb; /* one and only instance */
+    MTXORB *lcd;
 
-    mtxorb = mtxorb_open(MTXORB_DEV_PATHNAME, MTXORB_DEV_BAUDRATE, &mtxorb_info);
-    if (mtxorb == NULL)
+    lcd = mtxorb_open(LCD_PORTNAME, LCD_BAUDRATE, &lcd_dev_info);
+    if (lcd == NULL)
         return -1;
 
-    mtxorb_set_brightness(mtxorb, 120);
+    mtxorb_set_brightness(lcd, 120);
 
-    mtxorb_gotoxy(mtxorb, 3, 1);
-    mtxorb_puts(mtxorb, "System Failure");
+    mtxorb_gotoxy(lcd, 3, 1);
+    mtxorb_puts(lcd, "System Failure");
 
-    mtxorb_close(mtxorb);
+    mtxorb_close(lcd);
 
-    return 0;
+    return (0);
 }
 ```
 Have a look at the code in the test directory for a more advanced use case.
