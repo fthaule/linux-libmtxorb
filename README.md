@@ -3,7 +3,6 @@
 A user-space driver for controlling Matrix Orbital character type displays (LCD/VFD w/wo keypad) in Linux through serial (UART) interface.
 
 The driver is designed in a modular way to be able to control multiple display instances. It is also made ready to be included directly in a C++ project.
-At this point in time, I2C and OneWire support are not implemented. Maybe it'll be realized in a future release if there is a interest for it.
 
 In addition, all commands that could alter the content of the non-volatile part of the display's memory is left out. This is done intentionally as a precaution to eliminate the risk of memory-wear. That said, the function **mtxorb_write()** allows for sending raw data/custom commands to the display. Use with caution as you could potentially brick your display!
 
@@ -11,16 +10,7 @@ Documentation for the displays can be found here: http://www.matrixorbital.com/m
 
 ## Using the driver
 
-Option 1: Copy the source and header files as is, directly into your project.
-
-Option 2: Build as a static library:
-```
-$ make lib-static
-```
-Option 3: Build as a shared library, ready for system wide use (not recommended):
-```
-$ make lib-shared
-```
+Copy the source and header files as is, directly into your project.
 
 ## Simple Implementation Example
 
@@ -28,41 +18,35 @@ $ make lib-shared
 #include <stdio.h>
 #include "mtxorb.h"
 
-/* Display specifications */
-#define LCD_WIDTH        20
-#define LCD_HEIGHT       4
-#define LCD_CELLWIDTH    5
-#define LCD_CELLHEIGHT   8
-
-/* Connection details */
-#define LCD_PORTNAME     "/dev/ttyUSB0"
-#define LCD_BAUDRATE     19200
-
-
-static const struct mtxorb_device_info lcd_dev_info = {
-    LCD_WIDTH, LCD_HEIGHT,
-    LCD_CELLWIDTH, LCD_CELLHEIGHT,
-    MTXORB_LCD /* Display type: MTXORB_LCD, MTXORB_LKD, MTXORB_VFD or MTXORB_VKD */
+static const struct mtxorb_info lcd1_info = {
+    MTXORB_LCD,     /* Display type */
+    20,             /* Display columns */
+    4,              /* Display rows */
+    5,              /* Display cell-width */
+    8,              /* Display cell-height */
+    "dev/ttyUSB0",  /* Connection portname */
+    19200           /* Connection baudrate */
 };
 
 int main(void)
 {
-    MTXORB *lcd;
+    MTXORB *lcd1;
 
-    lcd = mtxorb_open(LCD_PORTNAME, LCD_BAUDRATE, &lcd_dev_info);
-    if (lcd == NULL)
+    lcd1 = mtxorb_open(&lcd_info1);
+    if (lcd1 == NULL)
         return -1;
 
-    mtxorb_set_brightness(lcd, 120);
+    mtxorb_set_brightness(lcd1, 120);
 
-    mtxorb_gotoxy(lcd, 3, 1);
-    mtxorb_puts(lcd, "System Failure");
+    mtxorb_gotoxy(lcd1, 3, 1);
+    mtxorb_puts(lcd1, "System Failure");
 
-    mtxorb_close(lcd);
+    mtxorb_close(lcd1);
 
     return (0);
 }
 ```
+
 Have a look at the code in the test directory for a more advanced use case.
 
 ## Contributing

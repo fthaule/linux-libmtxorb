@@ -29,10 +29,10 @@
 #define MAX_CELLHEIGHT 8
 #define MAX_CC 8 /* max. number of custom characters */
 
-#define IS_LCD_TYPE (p->device->type == MTXORB_LCD)
-#define IS_LKD_TYPE (p->device->type == MTXORB_LKD)
-#define IS_VFD_TYPE (p->device->type == MTXORB_VFD)
-#define IS_VKD_TYPE (p->device->type == MTXORB_VKD)
+#define IS_LCD_TYPE (p->info->type == MTXORB_LCD)
+#define IS_LKD_TYPE (p->info->type == MTXORB_LKD)
+#define IS_VFD_TYPE (p->info->type == MTXORB_VFD)
+#define IS_VKD_TYPE (p->info->type == MTXORB_VKD)
 
 /* Alias for ignoring the warning -Wunused-result for write() */
 #define Write(fd, buf, n) ((void)!write(fd, buf, n))
@@ -57,26 +57,26 @@ struct mtxorb_priv
     */
     enum mtxorb_cc_mode current_cc_mode;
 
-    struct mtxorb_device_info *device;
+    struct mtxorb_info *info;
 };
 
 static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff on);
-static int mtxorb_validate_device_info(const struct mtxorb_device_info *info);
+static int mtxorb_validate_info(const struct mtxorb_info *info);
 
-MTXORB *mtxorb_open(const char *portname, int baudrate, const struct mtxorb_device_info *info)
+MTXORB *mtxorb_open(const struct mtxorb_info *info)
 {
     struct mtxorb_priv *p;
     struct termios oldtio, newtio;
     int fd;
     int speed;
 
-    if ((info == NULL) || (mtxorb_validate_device_info(info) != 0))
+    if ((info == NULL) || (mtxorb_validate_info(info) != 0))
     {
         errno = EINVAL;
         return NULL;
     }
 
-    switch (baudrate)
+    switch (info->baudrate)
     {
     case 9600:
         speed = B9600;
@@ -95,7 +95,7 @@ MTXORB *mtxorb_open(const char *portname, int baudrate, const struct mtxorb_devi
         return NULL;
     }
 
-    if ((fd = open(portname, O_RDWR | O_NOCTTY)) == -1)
+    if ((fd = open(info->portname, O_RDWR | O_NOCTTY)) == -1)
         return NULL;
 
     if (flock(fd, LOCK_EX | LOCK_NB) == -1)
@@ -122,7 +122,7 @@ MTXORB *mtxorb_open(const char *portname, int baudrate, const struct mtxorb_devi
         return NULL;
 
     p->fd = fd;
-    p->device = (struct mtxorb_device_info *)info;
+    p->info = (struct mtxorb_info *)info;
     memcpy(&p->oldtio, &oldtio, sizeof(struct termios));
 
     mtxorb_clear(p);
@@ -223,9 +223,9 @@ void mtxorb_gotoxy(MTXORB *handle, int x, int y)
     struct mtxorb_priv *p = handle;
     unsigned char out[] = {'\xFE', 'G', 0, 0};
 
-    if ((x >= 0) && (x < p->device->width))
+    if ((x >= 0) && (x < p->info->width))
         out[2] = x + 1;
-    if ((y >= 0) && (y < p->device->height))
+    if ((y >= 0) && (y < p->info->height))
         out[3] = y + 1;
 
     Write(p->fd, out, 4);
@@ -273,7 +273,7 @@ void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data)
 {
     struct mtxorb_priv *p = handle;
     unsigned char out[] = {'\xFE', 'N', 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    unsigned char mask = (1 << p->device->cellwidth) - 1;
+    unsigned char mask = (1 << p->info->cellwidth) - 1;
     int i;
 
     if ((data == NULL) ||
@@ -282,7 +282,7 @@ void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data)
 
     out[2] = id;
 
-    for (i = 0; i < p->device->cellheight; i++)
+    for (i = 0; i < p->info->cellheight; i++)
         out[i + 3] = data[i] & mask;
 
     Write(p->fd, out, 11);
@@ -295,8 +295,8 @@ void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir dir)
     struct mtxorb_priv *p = handle;
     unsigned char out[] = {'\xFE', 0, 0, 0, 0, 0};
 
-    if ((x < 0) || (x >= p->device->width) ||
-        (y < 0) || (y >= p->device->height) ||
+    if ((x < 0) || (x >= p->info->width) ||
+        (y < 0) || (y >= p->info->height) ||
         (len < 0) || (len > 100))
         return;
 
@@ -325,7 +325,7 @@ void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style style)
     struct mtxorb_priv *p = handle;
     unsigned char out[] = {'\xFE', 0, 0, 0};
 
-    if ((x < 0) || (x >= p->device->width) ||
+    if ((x < 0) || (x >= p->info->width) ||
         (len < 0) || (len > 32))
         return;
 
@@ -351,7 +351,7 @@ void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_s
     struct mtxorb_priv *p = handle;
     unsigned char out[] = {'\xFE', 0, 0, 0, 0};
 
-    if ((x < 0) || (x >= p->device->width) ||
+    if ((x < 0) || (x >= p->info->width) ||
         (digit < 0) || (digit > 9))
         return;
 
@@ -375,7 +375,7 @@ void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_s
     }
     else
     {
-        if ((y < 0) || (y >= p->device->height))
+        if ((y < 0) || (y >= p->info->height))
             return;
         /* Medium sized digit */
         out[1] = 'o';
@@ -392,9 +392,7 @@ void mtxorb_backlight_off(MTXORB *handle)
 {
     struct mtxorb_priv *p = handle;
 
-    Write(p->fd, "\xFE"
-                 "F",
-          2);
+    Write(p->fd, "\xFE" "F", 2);
 }
 
 void mtxorb_set_contrast(MTXORB *handle, int value)
@@ -479,9 +477,7 @@ void mtxorb_keypad_backlight_off(MTXORB *handle)
     struct mtxorb_priv *p = handle;
 
     if (IS_LKD_TYPE)
-        Write(p->fd, "\xFE"
-                     "\x9B",
-              2);
+        Write(p->fd, "\xFE" "\x9B", 2);
 }
 
 void mtxorb_set_keypad_brightness(MTXORB *handle, int value)
@@ -540,7 +536,7 @@ static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff on)
     }
 }
 
-static int mtxorb_validate_device_info(const struct mtxorb_device_info *info)
+static int mtxorb_validate_info(const struct mtxorb_info *info)
 {
     if ((info->width < 0) || (info->width > MAX_WIDTH) ||
         (info->height < 0) || (info->height > MAX_HEIGHT))

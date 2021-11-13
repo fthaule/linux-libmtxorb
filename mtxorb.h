@@ -54,15 +54,17 @@ enum mtxorb_type {
     MTXORB_VKD      /* vacuum fluorescent w/keypad */
 };
 
-struct mtxorb_device_info {
+struct mtxorb_info {
+    enum mtxorb_type type;  /* display device type */
     int width;              /* number of columns */
     int height;             /* number of rows */
     int cellwidth;          /* number of horizontal pixels in a cell (default: 5) */
     int cellheight;         /* number of vertical pixels in a cell (default: 8) */
-    enum mtxorb_type type;  /* display model type */
+    const char *portname;   /* device portname to use. E.g. /dev/ttySn or /dev/USBn */
+    int baudrate;           /* allowed rates are: 9600, 19200, 38400 and 57600 */
 };
 
-typedef void MTXORB;
+typedef void MTXORB; /* main instance variable */
 
 
 /**
@@ -72,7 +74,7 @@ typedef void MTXORB;
  * @info:       pointer to display device info
  * @return valid handle or NULL in case of error
  */
-extern MTXORB *mtxorb_open(const char *portname, int baudrate, const struct mtxorb_device_info *info);
+extern MTXORB *mtxorb_open(const struct mtxorb_info *info);
 
 /**
  * Close a session.
