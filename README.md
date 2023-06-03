@@ -67,7 +67,7 @@ Have a look at the code in the test directory for a more advanced use case.
 
 ## Contributing
 
-Contributions to improving the driver in any aspect are most welcome! Make a pull request on https://github.com/fratha/linux-libmtxorb/pulls with your changes. All changes gets reviewed, tested and iterated on before applied.
+Contributions to improving the driver in any aspect are most welcome! Make a pull request on https://github.com/fthaule/linux-libmtxorb/pulls with your changes. All changes gets reviewed, tested and iterated on before applied.
 
 ## Development
 
