@@ -1,6 +1,6 @@
 # linux-libmtxorb
 
-A user-space driver for controlling Matrix Orbital character type displays (LCD/VFD w/wo keypad) in Linux through serial (UART) interface.
+A user-space driver for controlling Matrix Orbital character type displays (LCD/VFD w/wo keypad) in Linux. Supports USB or serial (UART) interfaces.
 
 The driver is designed in a modular way to be able to control multiple display instances. It is also made ready to be included directly in a C++ project.
 At this point in time, I2C and OneWire support are not implemented. Maybe it'll be realized in a future release if there is a interest for it.
