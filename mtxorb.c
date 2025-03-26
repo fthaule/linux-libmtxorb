@@ -12,14 +12,13 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <poll.h>
+#include <errno.h>
 #include <sys/file.h>
-#include <sys/termios.h>
-#include <sys/poll.h>
-#include <sys/errno.h>
 
 #include "mtxorb.h"
 
@@ -37,7 +36,7 @@
 /* Alias for ignoring the warning -Wunused-result for write() */
 #define Write(fd, buf, n) ((void)!write(fd, buf, n))
 
-enum mtxorb_cc_mode
+enum mtxorb_cc_mode_e
 {
     cc_hbar,
     cc_vbar,
@@ -45,7 +44,7 @@ enum mtxorb_cc_mode
     cc_custom
 };
 
-struct mtxorb_priv
+struct mtxorb_priv_s
 {
     int fd; /* File descriptor */
 
@@ -55,17 +54,17 @@ struct mtxorb_priv
      * mode, so we don't re-initialize on subsequent
      * calls.
     */
-    enum mtxorb_cc_mode current_cc_mode;
+    int current_cc_mode;
 
-    struct mtxorb_info *info;
+    const struct mtxorb_info_s *info;
 };
 
-static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff on);
-static int mtxorb_validate_info(const struct mtxorb_info *info);
+static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on);
+static int mtxorb_validate_info(const struct mtxorb_info_s *info);
 
-MTXORB *mtxorb_open(const struct mtxorb_info *info)
+MTXORB *mtxorb_open(const struct mtxorb_info_s *info)
 {
-    struct mtxorb_priv *p;
+    struct mtxorb_priv_s *p;
     struct termios oldtio, newtio;
     int fd;
     int speed;
@@ -117,12 +116,12 @@ MTXORB *mtxorb_open(const struct mtxorb_info *info)
         return NULL;
 
     /* Allocate memory for the new handler */
-    p = malloc(sizeof(struct mtxorb_priv));
+    p = malloc(sizeof(struct mtxorb_priv_s));
     if (p == NULL)
         return NULL;
 
     p->fd = fd;
-    p->info = (struct mtxorb_info *)info;
+    p->info = (struct mtxorb_info_s *)info;
     memcpy(&p->oldtio, &oldtio, sizeof(struct termios));
 
     mtxorb_clear(p);
@@ -134,13 +133,12 @@ MTXORB *mtxorb_open(const struct mtxorb_info *info)
 
 void mtxorb_close(MTXORB *handle)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
 
     if (p == NULL)
         return;
 
-    if (p->fd != -1)
-    {
+    if (p->fd != -1) {
         /* Release lock */
         flock(p->fd, LOCK_UN);
         /* Restore old port settings */
@@ -161,33 +159,32 @@ void mtxorb_home(MTXORB *handle)
 
 void mtxorb_clear(MTXORB *handle)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
 
     Write(p->fd, "\xFE"
-                 "X",
-          2);
+        "X",
+        2);
 }
 
 void mtxorb_putc(MTXORB *handle, char c)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
 
-    if (c == '\xFE')
-        c = ' ';
+    if (c == '\xFE') c = ' ';
 
     Write(p->fd, &c, 1);
 }
 
 void mtxorb_puts(MTXORB *handle, const char *s)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     char *c;
 
     /* Avoid creating an intermediate buffer,
      * so check and send bytes one by one */
     c = (char *)s;
-    for (; *c != '\0'; ++c)
-    {
+
+    for (; *c != '\0'; ++c) {
         /* Replace command prefix char with space */
         if (*c == '\xFE')
             Write(p->fd, " ", 1);
@@ -198,14 +195,14 @@ void mtxorb_puts(MTXORB *handle, const char *s)
 
 void mtxorb_write(MTXORB *handle, const void *buf, size_t nbytes)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
 
     Write(p->fd, buf, nbytes);
 }
 
 ssize_t mtxorb_read(MTXORB *handle, void *buf, size_t nbytes, int timeout)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     struct pollfd fds[1];
 
     fds[0].fd = p->fd;
@@ -220,7 +217,7 @@ ssize_t mtxorb_read(MTXORB *handle, void *buf, size_t nbytes, int timeout)
 
 void mtxorb_gotoxy(MTXORB *handle, int x, int y)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 'G', 0, 0};
 
     if ((x >= 0) && (x < p->info->width))
@@ -231,36 +228,36 @@ void mtxorb_gotoxy(MTXORB *handle, int x, int y)
     Write(p->fd, out, 4);
 }
 
-void mtxorb_set_cursor_block(MTXORB *handle, enum mtxorb_onoff on)
+void mtxorb_set_cursor_block(MTXORB *handle, enum mtxorb_onoff_e on)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0};
 
     out[1] = (on == MTXORB_ON) ? 'S' : 'T';
     Write(p->fd, out, 2);
 }
 
-void mtxorb_set_cursor_uline(MTXORB *handle, enum mtxorb_onoff on)
+void mtxorb_set_cursor_uline(MTXORB *handle, enum mtxorb_onoff_e on)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0};
 
     out[1] = (on == MTXORB_ON) ? 'J' : 'K';
     Write(p->fd, out, 2);
 }
 
-void mtxorb_set_auto_scroll(MTXORB *handle, enum mtxorb_onoff on)
+void mtxorb_set_auto_scroll(MTXORB *handle, enum mtxorb_onoff_e on)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0};
 
     out[1] = (on == MTXORB_ON) ? 'Q' : 'R';
     Write(p->fd, out, 2);
 }
 
-void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff on)
+void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff_e on)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0};
 
     out[1] = (on == MTXORB_ON) ? 'C' : 'D';
@@ -271,13 +268,12 @@ void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff on)
 
 void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 'N', 0, 0, 0, 0, 0, 0, 0, 0, 0};
     unsigned char mask = (1 << p->info->cellwidth) - 1;
     int i;
 
-    if ((data == NULL) ||
-        (id < 0) || (id >= MAX_CC))
+    if ((data == NULL) || (id < 0) || (id >= MAX_CC))
         return;
 
     out[2] = id;
@@ -290,9 +286,9 @@ void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data)
     p->current_cc_mode = cc_custom;
 }
 
-void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir dir)
+void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir_e dir)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0, 0, 0, 0, 0};
 
     if ((x < 0) || (x >= p->info->width) ||
@@ -303,8 +299,7 @@ void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir dir)
     /* Initialize the bar, replacing custom characters
      * currently present in memory bank 0.
      */
-    if (p->current_cc_mode != cc_hbar)
-    {
+    if (p->current_cc_mode != cc_hbar) {
         out[1] = 'h';
         Write(p->fd, out, 2);
 
@@ -320,9 +315,9 @@ void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir dir)
     Write(p->fd, out, 6);
 }
 
-void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style style)
+void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style_e style)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0, 0, 0};
 
     if ((x < 0) || (x >= p->info->width) ||
@@ -331,8 +326,7 @@ void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style style)
 
     /* Initialize the bar, replacing custom characters currently present
      * in memory. */
-    if (p->current_cc_mode != cc_vbar)
-    {
+    if (p->current_cc_mode != cc_vbar) {
         out[1] = (style == MTXORB_WIDE) ? 'v' : 'h';
         Write(p->fd, out, 2);
 
@@ -346,9 +340,9 @@ void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style style)
     Write(p->fd, out, 4);
 }
 
-void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_style style)
+void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_style_e style)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0, 0, 0, 0};
 
     if ((x < 0) || (x >= p->info->width) ||
@@ -357,8 +351,7 @@ void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_s
 
     /* Initialize the bar, replacing all custom characters
      * currently present. */
-    if (p->current_cc_mode != cc_bignum)
-    {
+    if (p->current_cc_mode != cc_bignum) {
         out[1] = (style == MTXORB_LARGE) ? 'n' : 'm';
         Write(p->fd, out, 2);
 
@@ -366,15 +359,13 @@ void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_s
     }
 
     /* Place the digit */
-    if (style == MTXORB_LARGE)
-    {
+    if (style == MTXORB_LARGE) {
         out[1] = '#';
         out[2] = x + 1;
         out[3] = digit;
         Write(p->fd, out, 4);
     }
-    else
-    {
+    else {
         if ((y < 0) || (y >= p->info->height))
             return;
         /* Medium sized digit */
@@ -390,21 +381,20 @@ void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_s
 
 void mtxorb_backlight_off(MTXORB *handle)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
 
     Write(p->fd, "\xFE" "F", 2);
 }
 
 void mtxorb_set_contrast(MTXORB *handle, int value)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 'P', 0};
 
     if ((value < 0) || (value > 255))
         return;
 
-    if (IS_LCD_TYPE || IS_LKD_TYPE)
-    {
+    if (IS_LCD_TYPE || IS_LKD_TYPE) {
         out[2] = value;
         Write(p->fd, out, 3);
     }
@@ -412,20 +402,17 @@ void mtxorb_set_contrast(MTXORB *handle, int value)
 
 void mtxorb_set_brightness(MTXORB *handle, int value)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0, 0};
 
     if ((value < 0) || (value > 255))
         return;
 
-    if (IS_VFD_TYPE || IS_VKD_TYPE)
-    {
-        if (value > 3)
-            value = 3;
+    if (IS_VFD_TYPE || IS_VKD_TYPE) {
+        if (value > 3) value = 3;
         out[1] = 'Y';
     }
-    else
-        out[1] = '\x99';
+    else out[1] = '\x99';
 
     out[2] = value;
     Write(p->fd, out, 3);
@@ -433,11 +420,10 @@ void mtxorb_set_brightness(MTXORB *handle, int value)
 
 void mtxorb_set_bg_color(MTXORB *handle, int r, int g, int b)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', '\x82', 0, 0, 0};
 
-    if (IS_LKD_TYPE)
-    {
+    if (IS_LKD_TYPE) {
         out[2] = r & 0xFF;
         out[3] = g & 0xFF;
         out[4] = b & 0xFF;
@@ -447,23 +433,20 @@ void mtxorb_set_bg_color(MTXORB *handle, int r, int g, int b)
 
 /* ----- General Purpose Output functions ----- */
 
-void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags flags)
+void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags_e flags)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0, 0};
     int i;
 
-    if (IS_LKD_TYPE || IS_VKD_TYPE)
-    {
-        for (i = 0; i < 6; i++)
-        {
+    if (IS_LKD_TYPE || IS_VKD_TYPE) {
+        for (i = 0; i < 6; i++) {
             out[1] = (flags & (1 << i)) ? 'W' : 'V';
             out[2] = i + 1;
             Write(p->fd, out, 3);
         }
     }
-    else
-    {
+    else {
         /* Only one output on LCD/VFD displays */
         out[1] = (flags) ? 'W' : 'V';
         Write(p->fd, out, 2);
@@ -474,7 +457,7 @@ void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags flags)
 
 void mtxorb_keypad_backlight_off(MTXORB *handle)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
 
     if (IS_LKD_TYPE)
         Write(p->fd, "\xFE" "\x9B", 2);
@@ -482,11 +465,10 @@ void mtxorb_keypad_backlight_off(MTXORB *handle)
 
 void mtxorb_set_keypad_brightness(MTXORB *handle, int value)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', '\x9C', 0};
 
-    if (IS_LKD_TYPE)
-    {
+    if (IS_LKD_TYPE) {
         if ((value < 0) || (value > 255))
             return;
 
@@ -495,13 +477,12 @@ void mtxorb_set_keypad_brightness(MTXORB *handle, int value)
     }
 }
 
-void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff on)
+void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff_e on)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', '\x7E', 0};
 
-    if (IS_LKD_TYPE || IS_VKD_TYPE)
-    {
+    if (IS_LKD_TYPE || IS_VKD_TYPE) {
         out[2] = (on == MTXORB_ON) ? 1 : 0;
         Write(p->fd, out, 3);
     }
@@ -509,14 +490,13 @@ void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff on)
 
 void mtxorb_set_key_debounce_time(MTXORB *handle, int value)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 'U', 0};
 
     if ((value < 0) || (value > 255))
         return;
 
-    if (IS_LKD_TYPE || IS_VKD_TYPE)
-    {
+    if (IS_LKD_TYPE || IS_VKD_TYPE) {
         out[2] = value;
         Write(p->fd, out, 3);
     }
@@ -524,19 +504,18 @@ void mtxorb_set_key_debounce_time(MTXORB *handle, int value)
 
 /* ------ Internal functions ----- */
 
-static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff on)
+static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on)
 {
-    struct mtxorb_priv *p = handle;
+    struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 0};
 
-    if (IS_LKD_TYPE || IS_VKD_TYPE)
-    {
+    if (IS_LKD_TYPE || IS_VKD_TYPE) {
         out[1] = (on == MTXORB_ON) ? 'A' : 'O';
         Write(p->fd, out, 2);
     }
 }
 
-static int mtxorb_validate_info(const struct mtxorb_info *info)
+static int mtxorb_validate_info(const struct mtxorb_info_s *info)
 {
     if ((info->width < 0) || (info->width > MAX_WIDTH) ||
         (info->height < 0) || (info->height > MAX_HEIGHT))

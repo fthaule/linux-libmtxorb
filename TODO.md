@@ -1,5 +1,4 @@
-# Todo List
+# Todo
 
-- Framebuffer functionality.
-- Connect display via the I2C protocol.
-- OneWire support.
+- Add I2C support.
+- Add 1-Wire support.

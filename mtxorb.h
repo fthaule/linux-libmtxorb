@@ -11,34 +11,37 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _MTXORB_H
-#define _MTXORB_H
+#ifndef __MTXORB_H_
+#define __MTXORB_H_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-enum mtxorb_onoff {
+#include <stdlib.h>
+#include <sys/types.h>
+
+enum mtxorb_onoff_e {
     MTXORB_OFF,
     MTXORB_ON
 };
 
-enum mtxorb_dir {
+enum mtxorb_dir_e {
     MTXORB_RIGHT,
     MTXORB_LEFT
 };
 
-enum mtxorb_vbar_style {
+enum mtxorb_vbar_style_e {
     MTXORB_NARROW,
     MTXORB_WIDE
 };
 
-enum mtxorb_bignum_style {
+enum mtxorb_bignum_style_e {
     MTXORB_MEDIUM,
     MTXORB_LARGE
 };
 
-enum mtxorb_gpo_flags {
+enum mtxorb_gpo_flags_e {
     MTXORB_GPO1 = (1<<0),
     MTXORB_GPO2 = (1<<1),
     MTXORB_GPO3 = (1<<2),
@@ -47,24 +50,24 @@ enum mtxorb_gpo_flags {
     MTXORB_GPO6 = (1<<5)
 };
 
-enum mtxorb_type {
+enum mtxorb_type_e {
     MTXORB_LCD,     /* standard lcd */
     MTXORB_LKD,     /* lcd w/keypad */
     MTXORB_VFD,     /* vacuum fluorescent type */
     MTXORB_VKD      /* vacuum fluorescent w/keypad */
 };
 
-struct mtxorb_info {
-    enum mtxorb_type type;  /* display device type */
-    int width;              /* number of columns */
-    int height;             /* number of rows */
-    int cellwidth;          /* number of horizontal pixels in a cell (default: 5) */
-    int cellheight;         /* number of vertical pixels in a cell (default: 8) */
-    const char *portname;   /* device portname to use. E.g. /dev/ttySn or /dev/USBn */
-    int baudrate;           /* allowed rates are: 9600, 19200, 38400 and 57600 */
+struct mtxorb_info_s {
+    enum mtxorb_type_e type;    /* display device type */
+    int width;                  /* number of columns */
+    int height;                 /* number of rows */
+    int cellwidth;              /* number of horizontal pixels in a cell (default: 5) */
+    int cellheight;             /* number of vertical pixels in a cell (default: 8) */
+    const char *portname;       /* device portname to use. E.g. /dev/ttySn or /dev/USBn */
+    int baudrate;               /* allowed rates are: 9600, 19200, 38400 and 57600 */
 };
 
-typedef void MTXORB; /* main instance variable */
+typedef void MTXORB; /* handler variable */
 
 
 /**
@@ -74,7 +77,7 @@ typedef void MTXORB; /* main instance variable */
  * @info:       pointer to display device info
  * @return valid handle or NULL in case of error
  */
-extern MTXORB *mtxorb_open(const struct mtxorb_info *info);
+extern MTXORB *mtxorb_open(const struct mtxorb_info_s *info);
 
 /**
  * Close a session.
@@ -131,24 +134,24 @@ extern void mtxorb_gotoxy(MTXORB *handle, int x, int y);
 /**
  * Set blinking block cursor on/off.
  */
-extern void mtxorb_set_cursor_block(MTXORB *handle, enum mtxorb_onoff on);
+extern void mtxorb_set_cursor_block(MTXORB *handle, enum mtxorb_onoff_e on);
 
 /**
  * Set underline cursor on/off.
  */
-extern void mtxorb_set_cursor_uline(MTXORB *handle, enum mtxorb_onoff on);
+extern void mtxorb_set_cursor_uline(MTXORB *handle, enum mtxorb_onoff_e on);
 
 /**
  * Set display auto scroll on/off.
  * @on: on: auto scroll (default), off: no scrolling
  */
-extern void mtxorb_set_auto_scroll(MTXORB *handle, enum mtxorb_onoff on);
+extern void mtxorb_set_auto_scroll(MTXORB *handle, enum mtxorb_onoff_e on);
 
 /**
  * Set line wrapping on/off.
  * @on: on: wrap to next line (default), off: no wrapping
  */
-extern void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff on);
+extern void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff_e on);
 
 /* ----- Special Characters related functions ----- */
 
@@ -167,7 +170,7 @@ extern void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data);
  * @len:   length of the bar, 0-100
  * @dir:   direction of the bar
  */
-extern void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir dir);
+extern void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir_e dir);
 
 /**
  * Place a vertical bar on the screen. This will replace all custom characters
@@ -176,7 +179,7 @@ extern void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir d
  * @len:   length of the bar, 0-32
  * @style: bar style
  */
-extern void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style style);
+extern void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style_e style);
 
 /**
  * Place a big number on the screen. This will replace all custom characters
@@ -186,7 +189,7 @@ extern void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style s
  * @digit: digit to place, 0-9
  * @style: digit style, medium or large
  */
-extern void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_style style);
+extern void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_style_e style);
 
 /* ----- Display related functions ----- */
 
@@ -222,7 +225,7 @@ extern void mtxorb_set_bg_color(MTXORB *handle, int r, int g, int b);
  * Note: Check with your display the number of outputs.
  * @flags: e.g. MTXORB_GPO1 | MTXORB_GPO2
  */
-extern void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags flags);
+extern void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags_e flags);
 
 /* ----- Keypad related functions ----- */
 
@@ -241,7 +244,7 @@ extern void mtxorb_set_keypad_brightness(MTXORB *handle, int value);
  * Set key press auto-repeat on/off.
  * @on: on: hold mode, off: typematic mode (default)
  */
-extern void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff on);
+extern void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff_e on);
 
 /**
  * Set key press debounce time.
@@ -253,4 +256,4 @@ extern void mtxorb_set_key_debounce_time(MTXORB *handle, int value);
 }
 #endif
 
-#endif /* _MTXORB_H */
+#endif /* __MTXORB_H_ */
