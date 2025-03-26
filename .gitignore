@@ -1,4 +1,5 @@
 test/mtxorb_test
+.vscode/
 .obj/
 *.o
 *.so

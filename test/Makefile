@@ -1,20 +1,19 @@
-TARGET = mtxorb_test
+BIN = mtxorb_test
 
-CFLAGS = -std=c89 -pedantic
-CFLAGS += -Wall -Wextra
+CFLAGS = -std=c89
+CFLAGS += -Wall -Wextra -Wpedantic
 
 CC = gcc
 RM = rm
 
-default: test
+default: build
 
-$(TARGET): clean
+$(BIN): clean
 	$(CC) $(CFLAGS) -I.. ../mtxorb.c test.c -o $@
 
-.PHONY: test
-test: $(TARGET)
-	./$(TARGET)
+.PHONY: build
+build: $(BIN)
 
 .PHONY: clean
 clean:
-	$(RM) -f $(TARGET)
+	$(RM) -f $(BIN)
