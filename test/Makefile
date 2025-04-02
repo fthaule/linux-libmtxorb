@@ -1,7 +1,7 @@
 BIN = mtxorb_test
 
 CFLAGS = -std=c89
-CFLAGS += -Wall -Wextra -Wpedantic
+CFLAGS += -Wall -Wextra -pedantic
 
 CC = gcc
 RM = rm
