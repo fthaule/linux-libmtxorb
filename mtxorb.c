@@ -1,5 +1,5 @@
 /**
- * Matrix Orbital character display user-space driver for Linux
+ * Matrix Orbital character display userspace driver for Linux
  *
  * Copyright (c) 2021 Frank Thaule
  *
@@ -59,7 +59,6 @@ struct mtxorb_priv_s
     const struct mtxorb_info_s *info;
 };
 
-static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on);
 static int mtxorb_validate_info(const struct mtxorb_info_s *info);
 
 MTXORB *mtxorb_open(const struct mtxorb_info_s *info)
@@ -69,8 +68,7 @@ MTXORB *mtxorb_open(const struct mtxorb_info_s *info)
     int fd;
     int speed;
 
-    if ((info == NULL) || (mtxorb_validate_info(info) != 0))
-    {
+    if ((info == NULL) || (mtxorb_validate_info(info) != 0)) {
         errno = EINVAL;
         return NULL;
     }
@@ -112,6 +110,7 @@ MTXORB *mtxorb_open(const struct mtxorb_info_s *info)
 
     /* Flush input buffer and apply new settings */
     tcflush(fd, TCIFLUSH);
+    
     if (tcsetattr(fd, TCSANOW, &newtio) == -1)
         return NULL;
 
@@ -125,8 +124,7 @@ MTXORB *mtxorb_open(const struct mtxorb_info_s *info)
     memcpy(&p->oldtio, &oldtio, sizeof(struct termios));
 
     mtxorb_clear(p);
-    mtxorb_home(p);
-    mtxorb_set_key_auto_tx(p, MTXORB_ON);
+    mtxorb_set_cursor(p, 0, 0);
 
     return p;
 }
@@ -138,7 +136,15 @@ void mtxorb_close(MTXORB *handle)
     if (p == NULL)
         return;
 
-    if (p->fd != -1) {
+    if (p->fd) {
+        mtxorb_clear(p);
+        mtxorb_set_cursor_block(p, MTXORB_OFF);
+        mtxorb_backlight_off(p);
+        mtxorb_keypad_backlight_off(p);
+        mtxorb_set_output(p, 0);
+        
+        /* Wait for pending output to be written */
+        tcdrain(p->fd);
         /* Release lock */
         flock(p->fd, LOCK_UN);
         /* Restore old port settings */
@@ -151,11 +157,6 @@ void mtxorb_close(MTXORB *handle)
 }
 
 /* ----- Text functions ----- */
-
-void mtxorb_home(MTXORB *handle)
-{
-    mtxorb_gotoxy(handle, 0, 0);
-}
 
 void mtxorb_clear(MTXORB *handle)
 {
@@ -215,7 +216,7 @@ ssize_t mtxorb_read(MTXORB *handle, void *buf, size_t nbytes, int timeout)
     return read(fds[0].fd, buf, nbytes);
 }
 
-void mtxorb_gotoxy(MTXORB *handle, int x, int y)
+void mtxorb_set_cursor(MTXORB *handle, int x, int y)
 {
     struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', 'G', 0, 0};
@@ -383,7 +384,9 @@ void mtxorb_backlight_off(MTXORB *handle)
 {
     struct mtxorb_priv_s *p = handle;
 
-    Write(p->fd, "\xFE" "F", 2);
+    if (IS_LCD_TYPE || IS_LKD_TYPE) {
+        Write(p->fd, "\xFE" "F", 2);
+    }
 }
 
 void mtxorb_set_contrast(MTXORB *handle, int value)
@@ -423,7 +426,7 @@ void mtxorb_set_bg_color(MTXORB *handle, int r, int g, int b)
     struct mtxorb_priv_s *p = handle;
     unsigned char out[] = {'\xFE', '\x82', 0, 0, 0};
 
-    if (IS_LKD_TYPE) {
+    if (IS_LCD_TYPE || IS_LKD_TYPE) {
         out[2] = r & 0xFF;
         out[3] = g & 0xFF;
         out[4] = b & 0xFF;
@@ -445,8 +448,7 @@ void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags_e flags)
             out[2] = i + 1;
             Write(p->fd, out, 3);
         }
-    }
-    else {
+    } else {
         /* Only one output on LCD/VFD displays */
         out[1] = (flags) ? 'W' : 'V';
         Write(p->fd, out, 2);
@@ -477,6 +479,17 @@ void mtxorb_set_keypad_brightness(MTXORB *handle, int value)
     }
 }
 
+void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on)
+{
+    struct mtxorb_priv_s *p = handle;
+    unsigned char out[] = {'\xFE', 0};
+
+    if (IS_LKD_TYPE || IS_VKD_TYPE) {
+        out[1] = (on == MTXORB_ON) ? 'A' : 'O';
+        Write(p->fd, out, 2);
+    }
+}
+
 void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff_e on)
 {
     struct mtxorb_priv_s *p = handle;
@@ -503,17 +516,6 @@ void mtxorb_set_key_debounce_time(MTXORB *handle, int value)
 }
 
 /* ------ Internal functions ----- */
-
-static void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on)
-{
-    struct mtxorb_priv_s *p = handle;
-    unsigned char out[] = {'\xFE', 0};
-
-    if (IS_LKD_TYPE || IS_VKD_TYPE) {
-        out[1] = (on == MTXORB_ON) ? 'A' : 'O';
-        Write(p->fd, out, 2);
-    }
-}
 
 static int mtxorb_validate_info(const struct mtxorb_info_s *info)
 {

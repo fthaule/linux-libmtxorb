@@ -1,5 +1,5 @@
 /**
- * Matrix Orbital character display user-space driver for Linux
+ * Matrix Orbital character display userspace driver for Linux
  *
  * Copyright (c) 2021 Frank Thaule
  *
@@ -11,8 +11,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __MTXORB_H_
-#define __MTXORB_H_
+#ifndef MTXORB_H_
+#define MTXORB_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,37 +42,37 @@ enum mtxorb_bignum_style_e {
 };
 
 enum mtxorb_gpo_flags_e {
-    MTXORB_GPO1 = (1<<0),
-    MTXORB_GPO2 = (1<<1),
-    MTXORB_GPO3 = (1<<2),
-    MTXORB_GPO4 = (1<<3),
-    MTXORB_GPO5 = (1<<4),
-    MTXORB_GPO6 = (1<<5)
+    MTXORB_GPO1 = (1 << 0),
+    MTXORB_GPO2 = (1 << 1),
+    MTXORB_GPO3 = (1 << 2),
+    MTXORB_GPO4 = (1 << 3),
+    MTXORB_GPO5 = (1 << 4),
+    MTXORB_GPO6 = (1 <<5 )
 };
 
 enum mtxorb_type_e {
-    MTXORB_LCD,     /* standard lcd */
-    MTXORB_LKD,     /* lcd w/keypad */
-    MTXORB_VFD,     /* vacuum fluorescent type */
-    MTXORB_VKD      /* vacuum fluorescent w/keypad */
+    MTXORB_LCD,     /* Standard LCD */
+    MTXORB_LKD,     /* LCD w/keypad */
+    MTXORB_VFD,     /* Vacuum fluorescent type */
+    MTXORB_VKD      /* Vacuum fluorescent w/keypad */
 };
 
 struct mtxorb_info_s {
-    enum mtxorb_type_e type;    /* display device type */
-    int width;                  /* number of columns */
-    int height;                 /* number of rows */
-    int cellwidth;              /* number of horizontal pixels in a cell (default: 5) */
-    int cellheight;             /* number of vertical pixels in a cell (default: 8) */
-    const char *portname;       /* device portname to use. E.g. /dev/ttySn or /dev/USBn */
-    int baudrate;               /* allowed rates are: 9600, 19200, 38400 and 57600 */
+    enum mtxorb_type_e type;    /* Device type */
+    int width;                  /* Number of columns */
+    int height;                 /* Number of rows */
+    int cellwidth;              /* Number of horizontal pixels in a cell (default: 5) */
+    int cellheight;             /* Number of vertical pixels in a cell (default: 8) */
+    const char *portname;       /* Device portname to use, e.g. /dev/ttySx or /dev/ttyUSBx */
+    int baudrate;               /* Allowed rates are: 9600, 19200, 38400 and 57600 */
 };
 
-typedef void MTXORB; /* handler variable */
+typedef void MTXORB; /* Handler alias */
 
 
 /**
  * Open a session for controlling a display.
- * @portname:   device port name, e.g. '/dev/ttyS0' or '/dev/ttyUSB0'
+ * @portname:   device port name, e.g. '/dev/ttySx' or '/dev/ttyUSBx'
  * @baudrate:   communication speed. Valid values: 9600, 19200, 38400 and 57600.
  * @info:       pointer to display device info
  * @return valid handle or NULL in case of error
@@ -85,11 +85,6 @@ extern MTXORB *mtxorb_open(const struct mtxorb_info_s *info);
 extern void mtxorb_close(MTXORB *handle);
 
 /* ----- Text related functions ----- */
-
-/**
- * Move the cursor to the home position (0, 0).
- */
-extern void mtxorb_home(MTXORB *handle);
 
 /**
  * Clear the display.
@@ -129,7 +124,7 @@ extern ssize_t mtxorb_read(MTXORB *handle, void *buf, size_t nbytes, int timeout
  * @x: column position, 0-based
  * @y: row position, 0-based
  */
-extern void mtxorb_gotoxy(MTXORB *handle, int x, int y);
+extern void mtxorb_set_cursor(MTXORB *handle, int x, int y);
 
 /**
  * Set blinking block cursor on/off.
@@ -153,7 +148,7 @@ extern void mtxorb_set_auto_scroll(MTXORB *handle, enum mtxorb_onoff_e on);
  */
 extern void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff_e on);
 
-/* ----- Special Characters related functions ----- */
+/* ----- Special characters related functions ----- */
 
 /**
  * Set a custom character at the specified id in display's memory.
@@ -218,7 +213,7 @@ extern void mtxorb_set_brightness(MTXORB *handle, int value);
  */
 extern void mtxorb_set_bg_color(MTXORB *handle, int r, int g, int b);
 
-/* ----- General Purpose Output related functions ----- */
+/* ----- General purpose output related functions ----- */
 
 /**
  * Set general purpose output states.
@@ -241,6 +236,12 @@ extern void mtxorb_keypad_backlight_off(MTXORB *handle);
 extern void mtxorb_set_keypad_brightness(MTXORB *handle, int value);
 
 /**
+ * Set if keypresses should be sent immediately or to use polling mode.
+ * @value: on: send immediately, off: polling mode (default)
+ */
+extern void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on);
+
+/**
  * Set key press auto-repeat on/off.
  * @on: on: hold mode, off: typematic mode (default)
  */
@@ -256,4 +257,4 @@ extern void mtxorb_set_key_debounce_time(MTXORB *handle, int value);
 }
 #endif
 
-#endif /* __MTXORB_H_ */
+#endif /* MTXORB_H_ */
