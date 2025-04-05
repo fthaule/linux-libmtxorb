@@ -14,70 +14,86 @@
 #ifndef MTXORB_H_
 #define MTXORB_H_
 
+#include <stdlib.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <stdlib.h>
-#include <sys/types.h>
+typedef enum {
+    MTXORB_ENONE = 0,       // No error
+    MTXORB_ENODEV,          // No such device
+    MTXORB_ENOLCK,          // No locks available
+    MTXORB_ENOMEM,          // Not enough space/cannot allocate memory
+    MTXORB_ETERM,           // Terminal error
+    MTXORB_EINVALBAUD,      // Invalid baudrate
+    MTXORB_EINVALTYPE,      // Invalid module type
+    MTXORB_EINVALSIZE,      // Invalid display size
+    MTXORB_EINVALCSIZE,     // Invalid cell size
+    MTXORB_EMAX_
+} mtxorb_errorcode_t;
 
-enum mtxorb_onoff_e {
+typedef enum {
     MTXORB_OFF,
     MTXORB_ON
-};
+} mtxorb_onoff_t;
 
-enum mtxorb_dir_e {
+typedef enum {
+    MTXORB_TYPEMATIC,
+    MTXORB_HOLD
+} mtxorb_autorepeat_mode_t;
+
+typedef enum {
     MTXORB_RIGHT,
     MTXORB_LEFT
-};
+} mtxorb_dir_t;
 
-enum mtxorb_vbar_style_e {
+typedef enum {
     MTXORB_NARROW,
     MTXORB_WIDE
-};
+} mtxorb_vbar_style_t;
 
-enum mtxorb_bignum_style_e {
+typedef enum {
     MTXORB_MEDIUM,
     MTXORB_LARGE
-};
+} mtxorb_bignum_style_t;
 
-enum mtxorb_gpo_flags_e {
+typedef enum {
     MTXORB_GPO1 = (1 << 0),
     MTXORB_GPO2 = (1 << 1),
     MTXORB_GPO3 = (1 << 2),
     MTXORB_GPO4 = (1 << 3),
     MTXORB_GPO5 = (1 << 4),
-    MTXORB_GPO6 = (1 <<5 )
-};
+    MTXORB_GPO6 = (1 << 5)
+} mtxorb_gpo_flags_t;
 
-enum mtxorb_type_e {
-    MTXORB_LCD,     /* Standard LCD */
-    MTXORB_LKD,     /* LCD w/keypad */
-    MTXORB_VFD,     /* Vacuum fluorescent type */
-    MTXORB_VKD      /* Vacuum fluorescent w/keypad */
-};
+typedef enum {
+    MTXORB_LCD,     // Standard LCD
+    MTXORB_LKD,     // LCD w/keypad
+    MTXORB_VFD,     // Vacuum fluorescent type
+    MTXORB_VKD      // Vacuum fluorescent w/keypad
+} mtxorb_module_type_t;
 
-struct mtxorb_info_s {
-    enum mtxorb_type_e type;    /* Device type */
-    int width;                  /* Number of columns */
-    int height;                 /* Number of rows */
-    int cellwidth;              /* Number of horizontal pixels in a cell (default: 5) */
-    int cellheight;             /* Number of vertical pixels in a cell (default: 8) */
-    const char *portname;       /* Device portname to use, e.g. /dev/ttySx or /dev/ttyUSBx */
-    int baudrate;               /* Allowed rates are: 9600, 19200, 38400 and 57600 */
-};
+typedef struct {
+    mtxorb_module_type_t type;  // Module type
+    int width;                  // Number of columns
+    int height;                 // Number of rows
+    int cellwidth;              // Number of horizontal pixels in a cell (default: 5)
+    int cellheight;             // Number of vertical pixels in a cell (default: 8)
+    const char *portname;       // Device portname to use, e.g. /dev/ttySx or /dev/ttyUSBx
+    int baudrate;               // Allowed rates are: 9600, 19200, 38400 and 57600
+} mtxorb_info_t;
 
-typedef void MTXORB; /* Handler alias */
-
+typedef void MTXORB; // Handler alias
 
 /**
  * Open a session for controlling a display.
- * @portname:   device port name, e.g. '/dev/ttySx' or '/dev/ttyUSBx'
+ * @portname:   device port name, e.g. '/dev/ttyS0', '/dev/ttyUSB0', '/dev/serial0'
  * @baudrate:   communication speed. Valid values: 9600, 19200, 38400 and 57600.
  * @info:       pointer to display device info
  * @return valid handle or NULL in case of error
  */
-extern MTXORB *mtxorb_open(const struct mtxorb_info_s *info);
+extern MTXORB *mtxorb_open(const mtxorb_info_t *info);
 
 /**
  * Close a session.
@@ -104,11 +120,12 @@ extern void mtxorb_putc(MTXORB *handle, char c);
 extern void mtxorb_puts(MTXORB *handle, const char *s);
 
 /**
- * Write raw data to the display
+ * Write raw data to the display.
  * @buf:    pointer to buffer
  * @nbytes: number of bytes to write
+ * @return number of bytes written, or -1 if error
  */
-extern void mtxorb_write(MTXORB *handle, const void *buf, size_t nbytes);
+extern int mtxorb_write(MTXORB *handle, const void *buf, size_t nbytes);
 
 /**
  * Read data from the display.
@@ -117,36 +134,51 @@ extern void mtxorb_write(MTXORB *handle, const void *buf, size_t nbytes);
  * @timeout:    number of milliseconds to wait for data, 0 = non-blocking
  * @return number of bytes read, or -1 if error
  */
-extern ssize_t mtxorb_read(MTXORB *handle, void *buf, size_t nbytes, int timeout);
+extern int mtxorb_read(MTXORB *handle, void *buf, size_t nbytes, int timeout);
 
 /**
- * Move the cursor to the specified position.
+ * Move cursor to the specified position.
  * @x: column position, 0-based
  * @y: row position, 0-based
  */
 extern void mtxorb_set_cursor(MTXORB *handle, int x, int y);
 
 /**
+ * Move cursor to home position.
+ */
+extern void mtxorb_home(MTXORB *handle);
+
+/**
+ * Move cursor back.
+ */
+extern void mtxorb_move_cursor_back(MTXORB *handle);
+
+/**
+ * Move cursor forward.
+ */
+extern void mtxorb_move_cursor_forward(MTXORB *handle);
+
+/**
  * Set blinking block cursor on/off.
  */
-extern void mtxorb_set_cursor_block(MTXORB *handle, enum mtxorb_onoff_e on);
+extern void mtxorb_set_cursor_block(MTXORB *handle, mtxorb_onoff_t on);
 
 /**
  * Set underline cursor on/off.
  */
-extern void mtxorb_set_cursor_uline(MTXORB *handle, enum mtxorb_onoff_e on);
+extern void mtxorb_set_cursor_uline(MTXORB *handle, mtxorb_onoff_t on);
 
 /**
  * Set display auto scroll on/off.
  * @on: on: auto scroll (default), off: no scrolling
  */
-extern void mtxorb_set_auto_scroll(MTXORB *handle, enum mtxorb_onoff_e on);
+extern void mtxorb_set_auto_scroll(MTXORB *handle, mtxorb_onoff_t on);
 
 /**
  * Set line wrapping on/off.
  * @on: on: wrap to next line (default), off: no wrapping
  */
-extern void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff_e on);
+extern void mtxorb_set_auto_line_wrap(MTXORB *handle, mtxorb_onoff_t on);
 
 /* ----- Special characters related functions ----- */
 
@@ -155,7 +187,7 @@ extern void mtxorb_set_auto_line_wrap(MTXORB *handle, enum mtxorb_onoff_e on);
  * @id:    id of the custom character, 0-7
  * @data:  pointer to data
  */
-extern void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data);
+extern void mtxorb_create_custom_char(MTXORB *handle, int id, const char *data);
 
 /**
  * Place a horizontal bar on the screen. This will replace all custom characters
@@ -165,7 +197,7 @@ extern void mtxorb_set_custom_char(MTXORB *handle, int id, const char *data);
  * @len:   length of the bar, 0-100
  * @dir:   direction of the bar
  */
-extern void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir_e dir);
+extern void mtxorb_hbar(MTXORB *handle, int x, int y, int len, mtxorb_dir_t dir);
 
 /**
  * Place a vertical bar on the screen. This will replace all custom characters
@@ -174,7 +206,7 @@ extern void mtxorb_hbar(MTXORB *handle, int x, int y, int len, enum mtxorb_dir_e
  * @len:   length of the bar, 0-32
  * @style: bar style
  */
-extern void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style_e style);
+extern void mtxorb_vbar(MTXORB *handle, int x, int len, mtxorb_vbar_style_t style);
 
 /**
  * Place a big number on the screen. This will replace all custom characters
@@ -184,9 +216,16 @@ extern void mtxorb_vbar(MTXORB *handle, int x, int len, enum mtxorb_vbar_style_e
  * @digit: digit to place, 0-9
  * @style: digit style, medium or large
  */
-extern void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, enum mtxorb_bignum_style_e style);
+extern void mtxorb_bignum(MTXORB *handle, int x, int y, int digit, mtxorb_bignum_style_t style);
 
 /* ----- Display related functions ----- */
+
+/**
+ * Turn the display's backlight on.
+ * @minutes: Number of minutes to leave backlight on,
+ * a value of 0 leaves the display on indefinitely.
+ */
+extern void mtxorb_backlight_on(MTXORB *handle, int minutes);
 
 /**
  * Turn the display's backlight off.
@@ -220,7 +259,7 @@ extern void mtxorb_set_bg_color(MTXORB *handle, int r, int g, int b);
  * Note: Check with your display the number of outputs.
  * @flags: e.g. MTXORB_GPO1 | MTXORB_GPO2
  */
-extern void mtxorb_set_output(MTXORB *handle, enum mtxorb_gpo_flags_e flags);
+extern void mtxorb_set_output(MTXORB *handle, mtxorb_gpo_flags_t flags);
 
 /* ----- Keypad related functions ----- */
 
@@ -239,19 +278,36 @@ extern void mtxorb_set_keypad_brightness(MTXORB *handle, int value);
  * Set if keypresses should be sent immediately or to use polling mode.
  * @value: on: send immediately, off: polling mode (default)
  */
-extern void mtxorb_set_key_auto_tx(MTXORB *handle, enum mtxorb_onoff_e on);
+extern void mtxorb_set_key_auto_tx(MTXORB *handle, mtxorb_onoff_t on);
 
 /**
  * Set key press auto-repeat on/off.
- * @on: on: hold mode, off: typematic mode (default)
+ * @mode: hold or typematic (default)
  */
-extern void mtxorb_set_key_auto_repeat(MTXORB *handle, enum mtxorb_onoff_e on);
+extern void mtxorb_set_key_autorepeat_mode(MTXORB *handle, mtxorb_autorepeat_mode_t mode);
+
+/**
+ * Turn off autorepeat mode. Default is on (typematic).
+ */
+extern void mtxorb_set_key_autorepeat_off(MTXORB *handle);
 
 /**
  * Set key press debounce time.
  * @time: debounce time = value * 6.554ms, (default: 8)
  */
 extern void mtxorb_set_key_debounce_time(MTXORB *handle, int value);
+
+/**
+ * Get current errorcode.
+ * @return current errorcode
+ */
+extern int mtxorb_get_errorcode(void);
+
+/**
+ * Get current error as a string.
+ * @return error in string format
+ */
+extern const char *mtxorb_get_error_str(void);
 
 #ifdef __cplusplus
 }
