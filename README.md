@@ -16,7 +16,7 @@ Contributions to improving the driver in any aspect are most welcome! Make a pul
 
 ## Development
 
-The driver has been developed on a computer running Linux and is written in C using the ISO C99 standard. Compiled and tested with GCC v13.3.0.
+The driver has been developed on a computer running Linux and is written in C using GNU C99. Compiled and tested with GCC v13.3.0.
 
 ## License
 
